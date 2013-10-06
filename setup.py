@@ -1,7 +1,8 @@
 import os
-from distutils.core import setup, Extension
+#from distutils.core import setup, Extension
+from setuptools import setup, Extension
 
-module = Extension('sobol',
+csobol = Extension('sobol',
                    include_dirs = ['/usr/local/include', os.getcwd()],
                    library_dirs = ['/usr/lib', '/usr/local/lib'],
                    libraries = ['gsl', 'gslcblas'],
@@ -14,5 +15,7 @@ setup(name = 'Sobol',
       description = 'Wrapper for GSL sobol',
       author = 'Adam Scriven',
       author_email = 'adam.scriven@gmail.com',
-      ext_modules=[module],
+      ext_modules=[csobol],
+      install_requires=['numpy'],
+      test_suite = 'test',
      )
