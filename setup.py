@@ -1,11 +1,12 @@
+import os
 from distutils.core import setup, Extension
 
 module = Extension('sobol',
-                   include_dirs = ['/usr/local/include'],
+                   include_dirs = ['/usr/local/include', os.getcwd()],
                    library_dirs = ['/usr/lib', '/usr/local/lib'],
                    libraries = ['gsl', 'gslcblas'],
                    extra_compile_args = ['-std=c99'],
-                   sources = ['sobol.c'],
+                   sources = ['sobol.c', 'sobol_obj.c'],
                   )
 
 setup(name = 'Sobol',
