@@ -11,11 +11,12 @@
 typedef struct {
     PyObject_HEAD
     gsl_qrng* _rng;
-    int       _size;
-    int       _dims;
+    size_t    _size;
+    size_t    _dims;
+    int       _is_inf;
 } SobolSampler;
 
-SobolSampler* SobolSampler_New(size_t size, int dims);
+SobolSampler* SobolSampler_New(size_t dims, PyObject* size);
 
 int SobolSampler_Register(PyObject* m);
 

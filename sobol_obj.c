@@ -1,10 +1,38 @@
 #include <sobol_obj.h>
+#include <limits.h>
+
 
 static void
 SobolSampler_dealloc(SobolSampler* self)
 {
     gsl_qrng_free(self->_rng);
     self->ob_type->tp_free((PyObject*)self);
+}
+
+
+static const char SobolSampler_dims__doc__[] =
+    "Number of dimensions";
+static PyObject*
+SobolSampler_dims(PyObject* self)
+{
+    SobolSampler* s = (SobolSampler *)self;
+    return PyInt_FromSsize_t(s->_dims);
+}
+
+static const char SobolSampler_size__doc__[] =
+    "Size of the sampler";
+static PyObject*
+SobolSampler_size(PyObject* self)
+{
+    SobolSampler* s = (SobolSampler *)self;
+
+    if (s->_is_inf)
+    {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    else
+        return PyInt_FromSsize_t(s->_size);
 }
 
 static PyObject*
@@ -24,15 +52,14 @@ SobolSampler_iternext(PyObject *self)
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
     }
-
+    
     int arr_dims[1]    = {s->_dims};
     PyArrayObject* arr = (PyArrayObject *)PyArray_SimpleNew(1 /*nd*/, arr_dims, NPY_DOUBLE);
 
-    if (arr == NULL)
-        return NULL;
+    if (!arr) return NULL;
 
     gsl_qrng_get(s->_rng, (double *)PyArray_DATA(arr));
-    --s->_size;
+    if (!s->_is_inf) --s->_size;
 
     return PyArray_Return(arr);
 }
@@ -42,6 +69,8 @@ static PyMemberDef SobolSampler_members[] = {
 };
 
 static PyMethodDef SobolSampler_methods[] = {
+    {"dims", (PyCFunction)SobolSampler_dims, METH_NOARGS, SobolSampler_dims__doc__},
+    {"size", (PyCFunction)SobolSampler_size, METH_NOARGS, SobolSampler_size__doc__},
     {NULL}  /* Sentinel */
 };
 
@@ -90,8 +119,10 @@ static PyTypeObject SobolSamplerType = {
 int SobolSampler_Register(PyObject* m)
 {
     SobolSamplerType.tp_new = PyType_GenericNew;
-    if (PyType_Ready(&SobolSamplerType) < 0)
-        return -1;
+
+    int ret = 0;
+    if ((ret = PyType_Ready(&SobolSamplerType)) < 0)
+        return ret;
 
     Py_INCREF(&SobolSamplerType);
     PyModule_AddObject(m, "_SobolSampler", (PyObject *)&SobolSamplerType);
@@ -99,16 +130,34 @@ int SobolSampler_Register(PyObject* m)
     return 0;
 }
 
-SobolSampler* SobolSampler_New(size_t size, int dims)
+SobolSampler* SobolSampler_New(size_t dims, PyObject* size)
 {
-    SobolSampler* s = PyObject_New(SobolSampler, &SobolSamplerType);
+    size_t _size   = 0;
+    size_t _is_inf = 0;
 
-    if (s == NULL)
+    if (size == Py_None)
+    {
+        _size   = 1;
+        _is_inf = 1;
+    }
+    else if (PyInt_Check(size) || PyLong_Check(size))
+    {
+        _size   = PyInt_AsSsize_t(size);
+        _is_inf = 0;
+    }
+    else
+    {
+        PyErr_SetString(PyExc_TypeError, "size must be an integer, or None");
         return NULL;
+    }
+    
+    SobolSampler* s = PyObject_New(SobolSampler, &SobolSamplerType);
+    if (!s) return NULL;
 
-    s->_size = size;
-    s->_dims = dims;
-    s->_rng = gsl_qrng_alloc(gsl_qrng_sobol, dims);
+    s->_size   = _size;
+    s->_is_inf = _is_inf;
+    s->_dims   = dims;
+    s->_rng    = gsl_qrng_alloc(gsl_qrng_sobol, dims);
 
     return s;
 }
